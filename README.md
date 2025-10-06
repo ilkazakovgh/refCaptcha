@@ -1,6 +1,8 @@
 # refCaptcha
 Hook class for CodeIgniter that implements HTTP_REFERER verification and displays a simple captcha for “direct” visits
 
+Using this hook can help cut off bot traffic on your site that Yandex.Metrica reports under the "Direct visits" source.
+
 You can configure the following class constants:
 ```php
 COOKIE_NAME
