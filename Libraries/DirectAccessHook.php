@@ -1,5 +1,4 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
  * DirectAccessHook
@@ -9,7 +8,11 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * Because pre_system runs before the CI core is fully bootstrapped, this hook
  * works directly with PHP superglobals and plain PHP sessions/cookies.
  */
-class DirectAccessHook {
+
+namespace App\Libraries;
+
+class DirectAccessHook
+{
     /**
      * Name of the cookie that indicates a user has successfully passed the CAPTCHA.
      * If this cookie is present, the hook skips further checks for that user.
@@ -21,14 +24,15 @@ class DirectAccessHook {
      * Set this to your base domain to share the cookie across subdomains
      * (for example, set to "example.com" to cover "www.example.com" and "api.example.com").
      */
-    private const COOKIE_DOMAIN = 'domain.com';
+    private const COOKIE_DOMAIN = 'codificator.ru';
 
     /**
      * Constructor.
      * Note: In the pre_system hook you cannot use get_instance(),
      * so the hook uses PHP superglobals directly.
      */
-    public function __construct() {
+    public function __construct()
+    {
         // In the pre_system hook get_instance() is not available.
         // Therefore we work directly with superglobal variables.
     }
@@ -45,7 +49,8 @@ class DirectAccessHook {
      *
      * @return void
      */
-    public function checkAccess() {
+    public function checkAccess(): void
+    {
         if (isset($_COOKIE[self::COOKIE_NAME])) {
             return;
         }
@@ -63,17 +68,18 @@ class DirectAccessHook {
             // If the domain is not allowed, show the CAPTCHA form
             if (!$this->isAllowedDomain($domain)) {
                 $this->showCaptchaForm();
-                exit;
             }
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['captcha_answer'])) {
             if ($this->checkCaptcha($_POST['captcha_answer'])) {
                 setcookie(self::COOKIE_NAME, uniqid(), time()+43200, '/', self::COOKIE_DOMAIN, true);
+                header("Location: " . $_SERVER['REQUEST_URI'], true);
             } else {
                 $this->showCaptchaForm('Неверный ответ. Попробуйте ещё раз.');
-                exit;
             }
+
+            exit;
         }
     }
 
@@ -110,7 +116,8 @@ class DirectAccessHook {
      * @param string $ip IPv4/IPv6 address.
      * @return string|false Resolved domain name or false if not resolved.
      */
-    protected function reverseLookup(string $ip) {
+    protected function reverseLookup(string $ip): bool|string
+    {
         $domain = gethostbyaddr($ip);
         return ($domain == $ip) ? false : $domain;
     }
@@ -118,10 +125,10 @@ class DirectAccessHook {
     /**
      * Check if the resolved domain is in the allowed list.
      *
-     * @param string|false $domain Domain resolved from reverse DNS or false.
+     * @param bool|string $domain Domain resolved from reverse DNS or false.
      * @return bool True if the domain is allowed; otherwise false.
      */
-    protected function isAllowedDomain($domain): bool
+    protected function isAllowedDomain(bool|string $domain): bool
     {
         if (empty($domain)) {
             return false;
@@ -130,7 +137,7 @@ class DirectAccessHook {
         $allowedDomains = ['yandex.com', 'google.com'];
 
         foreach ($allowedDomains as $allowed) {
-            if (strpos($domain, $allowed) !== false) {
+            if (str_contains($domain, $allowed)) {
                 return true;
             }
         }
@@ -147,7 +154,7 @@ class DirectAccessHook {
     {
         $num1 = rand(1, 10);
         $num2 = rand(1, 10);
-        $operators = ['+', '-', '*'];
+        $operators = ['+', '-'];
         $operator = $operators[array_rand($operators)];
 
         $_SESSION['captcha_answer'] = $this->calculateCaptcha($num1, $num2, $operator);
@@ -161,15 +168,16 @@ class DirectAccessHook {
      * @param int $num1 First operand.
      * @param int $num2 Second operand.
      * @param string $operator One of '+', '-', '*'.
-     * @return int The calculated result.
+     * @return float|int The calculated result.
      */
-    protected function calculateCaptcha(int $num1, int $num2, string $operator) {
-        switch ($operator) {
-            case '+': return $num1 + $num2;
-            case '-': return $num1 - $num2;
-            case '*': return $num1 * $num2;
-            default: return 0;
-        }
+    protected function calculateCaptcha(int $num1, int $num2, string $operator): float|int
+    {
+        return match ($operator) {
+            '+' => $num1 + $num2,
+            '-' => $num1 - $num2,
+            '*' => $num1 * $num2,
+            default => 0,
+        };
     }
 
     /**
@@ -178,7 +186,7 @@ class DirectAccessHook {
      * @param mixed $answer User-provided answer (string or number).
      * @return bool True if the answer matches; otherwise false.
      */
-    protected function checkCaptcha($answer): bool
+    protected function checkCaptcha(mixed $answer): bool
     {
         return isset($_SESSION['captcha_answer']) && is_numeric($answer)
             && intval($_SESSION['captcha_answer']) == intval($answer);
@@ -190,13 +198,14 @@ class DirectAccessHook {
      * @param string|null $error Optional error message to display above the form.
      * @return void
      */
-    protected function showCaptchaForm(string $error = null) {
+    protected function showCaptchaForm(string|null $error = null): void
+    {
         $captchaQuestion = $this->generateCaptcha();
         ?>
         <!DOCTYPE html>
         <html lang="ru">
         <head>
-            <title>МинЖКХ.ру - хотим убедиться, что вы не робот</title>
+            <title>Дома.Кодификатор: проверка, что вы не робот</title>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
@@ -207,29 +216,25 @@ class DirectAccessHook {
                 }
                 body {
                     font-family: Arial, sans-serif;
-                    background-color: #eee;
                     color: #000;
                     line-height: 1.6;
-                    padding: 20px;
                 }
                 .container {
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                }
+                .container .main {
                     max-width: 600px;
-                    margin: 0 auto;
                     padding: 30px;
                     background-color: #fff;
                     border-radius: 10px;
-                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-                }
-                h1 {
-                    color: #1faabe;
-                    font-size: 28px;
-                    margin-bottom: 20px;
-                    text-align: center;
+                    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
                 }
                 .project-title {
-                    color: #1faabe;
+                    color: #337ab7;
                     font-size: 32px;
-                    font-weight: bold;
                     text-align: center;
                     margin-bottom: 30px;
                 }
@@ -239,17 +244,13 @@ class DirectAccessHook {
                     text-align: center;
                 }
                 .captcha-container {
-                    background-color: #f9f9f9;
-                    padding: 25px;
-                    border-radius: 8px;
-                    margin-top: 20px;
+                    margin-top: 4rem;
                 }
                 .error {
                     color: #ff3333;
                     font-size: 16px;
                     text-align: center;
                     margin-bottom: 15px;
-                    font-weight: bold;
                 }
                 form {
                     display: flex;
@@ -263,7 +264,6 @@ class DirectAccessHook {
                 label {
                     font-size: 18px;
                     margin-bottom: 8px;
-                    font-weight: bold;
                 }
                 input[type="text"] {
                     padding: 15px;
@@ -278,7 +278,7 @@ class DirectAccessHook {
                     outline: none;
                 }
                 button {
-                    background-color: #32c8de;
+                    background-color: #337ab7;
                     color: white;
                     border: none;
                     padding: 15px;
@@ -286,10 +286,9 @@ class DirectAccessHook {
                     border-radius: 6px;
                     cursor: pointer;
                     transition: background-color 0.3s;
-                    font-weight: bold;
                 }
                 button:hover {
-                    background-color: #1faabe;
+                    background-color: #0a58ca;
                 }
                 @media (max-width: 480px) {
                     .container {
@@ -313,27 +312,39 @@ class DirectAccessHook {
         </head>
         <body>
         <div class="container">
-            <div class="project-title">Название вашего приложения</div>
-            <h1>Хотим убедиться, что вы не робот</h1>
-            <p>Пожалуйста, решите пример, чтобы продолжить:</p>
+            <div class="main">
+                <div class="project-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-stack" viewBox="0 0 16 16">
+                        <path d="m14.12 10.163 1.715.858c.22.11.22.424 0 .534L8.267 15.34a.6.6 0 0 1-.534 0L.165 11.555a.299.299 0 0 1 0-.534l1.716-.858 5.317 2.659c.505.252 1.1.252 1.604 0l5.317-2.66zM7.733.063a.6.6 0 0 1 .534 0l7.568 3.784a.3.3 0 0 1 0 .535L8.267 8.165a.6.6 0 0 1-.534 0L.165 4.382a.299.299 0 0 1 0-.535z"/>
+                        <path d="m14.12 6.576 1.715.858c.22.11.22.424 0 .534l-7.568 3.784a.6.6 0 0 1-.534 0L.165 7.968a.299.299 0 0 1 0-.534l1.716-.858 5.317 2.659c.505.252 1.1.252 1.604 0z"/>
+                    </svg>
+                    Дома.Кодификатор
+                </div>
 
-            <?php if ($error): ?>
-                <p class="error"><?php echo htmlspecialchars($error); ?></p>
-            <?php endif; ?>
+                <p>
+                    Хотим убедиться, что вы не робот.<br>
+                    Пожалуйста, решите пример, чтобы продолжить.
+                </p>
 
-            <div class="captcha-container">
-                <form method="POST">
-                    <div class="form-group">
-                        <label for="captcha_answer">Сколько будет <?php echo htmlspecialchars($captchaQuestion); ?>?</label>
-                        <input type="text" id="captcha_answer" name="captcha_answer" required autocomplete="off">
-                    </div>
-                    <button type="submit">Продолжить</button>
-                </form>
+
+                <?php if ($error): ?>
+                    <p class="error"><?php echo htmlspecialchars($error); ?></p>
+                <?php endif; ?>
+
+
+                <div class="captcha-container">
+                    <form method="POST">
+                        <div class="form-group">
+                            <label for="captcha_answer">Сколько будет <?php echo htmlspecialchars($captchaQuestion); ?>?</label>
+                            <input type="text" id="captcha_answer" name="captcha_answer" required autocomplete="off">
+                        </div>
+                        <button type="submit">Продолжить</button>
+                    </form>
+                </div>
             </div>
         </div>
         </body>
         </html>
         <?php
-        exit;
     }
 }
